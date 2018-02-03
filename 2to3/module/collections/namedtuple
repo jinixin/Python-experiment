@@ -1,0 +1,89 @@
+collections.namedtuple类型
+
+3.1版本引入的新类型，用于扩展tuple类型，可以使用名字代替index来获取元素。
+namedtuple类型的实例是类，这点像元类。
+
+
+1）创建
+namedtuple(typename, field_names, *, verbose=False, rename=False, module=None)
+返回一个tuple子类，类型为typename。
+相较于普通元组，namedtuple可使用名字代替index来获取元素，注意参数列表中*后的都是强制关键字参数。
+
+参数列表：
+field_names是一个序列，可以是用空格或逗号分隔的字符串（如'x y'或'x, y'），也可是list（如['x', 'y']）。其与元素相对应，表示它们的名字。
+当rename为True时，非法的名字会自动被替换为位置参数“_index”。比如field_names为['abc', 'def', 'ghi', 'abc']因存在保留字和重复名字，故会被替换为['abc', '_1', 'ghi', '_3']。
+当verbose为True时，会将类定义自动打印出来，目前该参数已显得有些过时，建议保持False。
+module定义后，其值会被赋给__module__参数，表示所属模块。
+
+举例：
+>>> PPoint = namedtuple('Point', 'x y')  # 创建tuple的子类PPoint，建议被赋值的变量与typename保持一致，现在就隐隐有些不适
+>>> p = PPoint(11, y=12)  # 创建PPoint的实例，赋值时不能有遗漏。接收关键字参数，也接受dict：PPoint(**dict)
+
+>>> type(p)  # 该实例类型为Point
+<class '__main__.Point'>
+>>> isinstance(p, tuple)  # 该实例也是tuple的子类
+True
+
+
+2）取值
+用index获取
+>>> p[0], p[1]
+(11, 12)
+
+用关键字获取
+>>> p.x, p.y
+(11, 12)
+
+>>> p
+Point(x=11, y=12)
+
+
+除了从tuple那里继承的方法外，namedtuple额外还支持3种方法和2个属性。
+
+
+1）namedtuple._make(可迭代对象)
+通过可迭代对象构建一个新实例
+
+>>> PPoint._make([15,16])
+Point(x=15, y=16)
+
+应用：
+EmployeeRecord = namedtuple('EmployeeRecord', 'name, age, title, department')
+
+从csv中读取并直接输出
+for emp in map(EmployeeRecord._make, csv.reader(open("employees.csv"))):
+    print(emp.name, emp.title)
+
+从数据库中读取并直接输出
+cursor.execute('SELECT name, age, title, department FROM employees')
+for emp in map(EmployeeRecord._make, cursor.fetchall()):
+    print(emp.name, emp.title)
+
+
+2）namedtuple._asdict()
+返回一个OrderedDict对象，包括名字和它们对应的值
+
+>>> p
+Point(x=11, y=12)
+>>> p._asdict()
+OrderedDict([('x', 11), ('y', 12)])
+
+
+3）namedtuple._replace(**kwargs)
+替换相关值并返回新的实例，但不能有新的名字
+
+>>> p
+Point(x=11, y=12)
+>>> p._replace(x=33, y=55)
+Point(x=33, y=55)
+>>> p
+Point(x=11, y=12)
+
+
+4）p._source
+
+5）p._fields
+
+6）可以对namedtuple再进行改造
+class Point(namedtuple('Point', ['x', 'y'])):
+    pass
