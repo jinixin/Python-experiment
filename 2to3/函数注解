@@ -1,0 +1,105 @@
+函数注解（PEP 3107）
+
+3.0版本引入的新特性，支持对函数的参数与返回值增加注释。
+
+注释可用于记录帮助信息，也可以用于标注类型。
+除了可以使用__annotations__属性获取外，注释没有其他附加语义。而将强制控制权交给框架，元类与装饰器，而Python则在一旁静观其变。
+
+1. 定义
+1）参数注解
+变量名 [: 注释] [= 默认值]
+严格按照先注释后默认值的顺序，且两者都是可选的。注释和默认值都必须是Python表达式，在执行函数定义时对其进行评估。
+
+def foo(a: expression, b: expression = 5):
+    ...
+
+def foo(*args: expression, **kwargs: expression):
+    ...
+
+2）返回值注解
+def 函数名(参数列表) -> 注释:
+    ...
+其是可选的，必须为Python表达式。其在执行函数定义时进行评估。
+
+
+2. 属性
+1）通过__annotations__属性可获得注解字典，如果存在返回值注解，则字典中有return这个key，故参数不能用return命名。
+
+def foo(a: 'aa', b: 5 + 6, c: int) -> str:
+    pass
+foo.__annotations__
+
+{'a': 'aa', 'b': 11, 'c': <class 'int'>, 'return': <class 'str'>}
+
+
+3. 应用
+应用函数注解检查实参类型与返回值类型，弥补Python弱类型的不足
+
+
+#!/usr/bin/env python3
+# coding=utf-8
+
+
+def check_params(func):
+    def inner(*args, **kwargs):
+        rules = func.__annotations__  # 获取参数与返回值的注解
+
+        for name, value in kwargs.items():  # 检查传入的关键字参数类型
+            if not isinstance(value, rules[name]):
+                raise RuntimeError('%s want %s, but %s' % (name, rules[name], type(value)))
+
+        back = func(*args, **kwargs)
+
+        if 'return' in rules and not isinstance(back, rules['return']):  # 检查返回值类型
+            raise RuntimeError('return want %s, but %s' % (rules['return'], type(back)))
+
+        return back
+
+    return inner
+
+
+# 测试检查参数类型
+@check_params
+def intro(name: str, age: int, high: float = 160):
+    print('%s is %d years old, %f centimeters high.' % (name, age, high))
+
+
+# 测试检查返回值类型
+@check_params
+def back(num) -> int:
+    return num
+
+
+# 测试对实例方法是否具有普适性
+class Mobile(object):
+
+    def __init__(self, mobile):
+        self.mobile = mobile
+
+    def __str__(self):
+        return self.mobile
+
+
+class Factory(object):
+
+    @check_params
+    def intro(self, name: str, mobile: Mobile):
+        print('%s publish %s' % (name, mobile))
+
+
+if __name__ == '__main__':
+    intro(name='Ming', age=23)
+    # intro(name=222, age='3333')
+    back(5)
+    # back(5.6)
+    mobile = Mobile('mix')
+    xm = Factory()
+    xm.intro(name='xiaomi', mobile=mobile)
+    xm.intro(name='xiaomi', mobile='mix')
+
+
+
+备注：
+lambda表达式不支持函数注解。
+函数注解可用于类型检查，重载函数
+
