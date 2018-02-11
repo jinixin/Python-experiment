@@ -1,0 +1,62 @@
+collections.OrderedDict类型
+
+3.1版本引入的新类型， 简称为odict，其是一种有顺序的dict。
+按元素插入的先后顺序，迭代元素。若插入重复键，不影响该键的排位顺序，只更新值。
+odict为dict的子类，具有dict大多数属性和方法。
+
+1）引入
+from collections import OrderedDict
+
+
+2）创建与赋值
+>>> d = OrderedDict()
+>>> d['bb'] = 'bbb'
+>>> d['aa'] = 'aaa'
+
+
+3）输出键值对
+>>> d.items()
+odict_items([('bb', 'bbb'), ('aa', 'aaa')])
+
+>>> d.keys()
+>>> d.values()
+
+
+4）更新
+>>> d.update({'cc':'ccc', 'dd':'ddd'})
+>>> d
+OrderedDict([('bb', 'bbb'), ('aa', 'aaa'), ('cc', 'ccc'), ('dd', 'ddd')])
+
+
+5）删除元素
+弹出最后插入的元素，并返回该键值对
+>>> d.popitem()
+('dd', 'ddd')
+
+
+6）反转
+反转d的key，但d仍然不变
+>>> d.__reversed__() <=> reverse(d)
+>>>OrderedDict([('a',1),('b',2)])
+
+
+7）类型
+>>> isinstance(d,dict)
+True
+
+
+8）json编解码
+
+json编码器遵守OrderedDict的迭代顺序
+>>> stt = json.dumps(d)
+>>> stt
+'{"bb": "bbb", "aa": "aaa"}'
+
+json解码器默认解析成Dict
+>>> json.loads(stt)
+{'bb': 'bbb', 'aa': 'aaa'}
+
+故最好对json解码器指定解析成的类型
+>>> json.loads(stt, object_pairs_hook=OrderedDict)
+OrderedDict([('bb', 'bbb'), ('aa', 'aaa')])
+
