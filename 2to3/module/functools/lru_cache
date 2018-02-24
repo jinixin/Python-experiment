@@ -1,0 +1,57 @@
+lru_cache装饰器
+
+3.2版本functools库引入的新装饰器，用于对函数结果缓存。
+被装饰的函数在被相同输入参数调用时，将直接读取内存中的上次结果，不再进行计算。你可以认为其存储在字典中，参数为键，函数返回值为值。因此被装饰函数的所有参数必须是可哈希的
+可应用于网络传输，数据库输出数据。
+LRU：清除最近最久未使用
+
+
+形式：
+@lru_cache(关键字参数)
+def func(param):
+    ...
+
+两个关键字参数：
+maxsize：默认maxsize=128，指定下面函数最多缓存之前300条记录。当其值为None时，将不设缓存上限，当然LRU也失效。该值最好是2的幂。
+typed：默认typed=False，忽略参数的类型，只看值。即3与3.0被认为是相同参数。
+
+打印目前缓存情况，注意func是函数名
+func.cache_info()
+
+清除缓存，注意func是函数名
+func.cache_clear()
+
+
+在有些地方，你不想该函数使用缓存，怎么办呢？
+别忘了functools库提供了__wrapped__属性，用于直接暴露出未被装饰过的原函数
+因此仅需，注意func是函数名
+func = func.__wrapped__
+func在该作用域范围内便是不缓存结果的函数
+
+具体例子：
+#!/usr/bin/env python3
+# coding=utf-8
+
+from functools import lru_cache
+
+
+@lru_cache()
+def foo(name):
+    stt = 'hello, %s' % name
+    print('foo: %s' % stt)
+    return stt
+
+stt = foo(3)
+print('outer1: %s' % stt)
+
+stt = foo(3.0)
+print('outer2: %s' % stt)
+
+print(foo.cache_info())
+
+foo.cache_clear()
+
+foo: hello, 3
+outer1: hello, 3
+outer2: hello, 3
+CacheInfo(hits=1, misses=1, maxsize=128, currsize=1)
