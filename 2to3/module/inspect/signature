@@ -1,0 +1,139 @@
+inspect.signature方法
+
+3.3版本引入，用于产生函数签名对象（Signature Object），该方法接受一个可调用对象，该方法是创造Signature对象的首选方法。
+
+
+我们先看下Signature对象简介
+
+1. Signature对象（函数签名对象）
+Signature对象用于展示函数的参数以及返回值信息，并使得内省更为简单和直接。
+
+return_annotation属性：返回该函数的返回值注解对象
+
+parameters属性：返回所有参数的参数名以及其对应的参数对象（Parameter Object）所组成的字典，OrderedDict类型
+
+bind(*args, **kwargs)方法：将参数值和对应的参数绑定，如果没绑定则返回TypeError，否则返回BoundArguments对象。
+
+忽略bind_partial方法，replace方法
+
+测试案例：
+def test(a, *, b):  # a为位置参数，b为强制关键字参数
+    ...
+
+sig = signature(test)  # 传入函数名
+ba = sig.bind(10, b=20)  # 将参数值与对应的参数绑定
+test(*ba.args, **ba.kwargs)  # 调用test函数的一种方法
+
+
+def test(a=1, b=2, c=3):
+    pass
+
+sig = signature(test)  # 传入函数名
+ba = sig.bind(a=10, c=13)  # 将参数值与对应的参数绑定
+
+>>> ba.args
+(10,)
+
+>>> ba.kwargs
+{'c': 13}
+
+
+可通过三种方法获得Signature对象：
+1）Signature(parameters=参数对象, *, return_annotation=返回值注解对象)
+
+2）Signature.from_function(函数名)：返回传入函数的Signature对象
+
+3）signature(函数名)：返回传入函数的Signature对象，推荐
+
+
+
+2. Parameter对象（参数对象）
+Parameter对象展示函数的某个参数，包括参数名，默认值与函数注解
+个人目前没有感受到Parameter对象使用的地方
+name属性：字符串类型
+
+default属性：obj类型，无默认值，则为Parameter.empty对象
+
+annotation属性：obj类型，该参数无注解，则为Parameter.empty对象
+
+kind属性：描述该参数类型：位置参数，关键字参数，可选的参数等
+
+忽略replace方法
+
+可通过下面的方法获得Parameter对象
+Parameter(name, kind, *, annotation=Parameter.empty, default=Parameter.empty)
+annotation为函数注解，default为默认值，两者均为强制关键字参数，默认均为Parameter.empty对象
+
+
+3. BoundArguments对象（绑定参数对象）
+BoundArguments对象为Signature.bind方法的返回值，其保存了函数参数到值的映射。
+
+arguments属性：已赋值的位置与关键字参数组成的字典，OrderedDict类型
+args属性：已赋值的位置参数组成的列表，tuple类型
+kwargs属性：已赋值的关键字参数组成的字典，dict类型
+
+测试
+>>> def func(a:str, b:int=10, c:int=20):
+...   print (a, b, c)
+
+>>> sig = signature(func)  # 得到函数的Signature对象
+>>> ba = sig.bind(10, c=12)  # 将值与参数绑定
+>>> ba.arguments  # 已赋值的位置与关键字参数组成的字典
+OrderedDict([('a', 10), ('c', 12)])
+>>> ba.args  # 已赋值的位置参数
+(10,)
+>>> ba.kwargs  # 已赋值的关键字参数
+{'c': 12}
+
+>>> func.__annotations__  # 函数注解
+{'a': <class 'str'>, 'b': <class 'int'>, 'c': <class 'int'>}
+
+
+可以看到通过使用函数的__annotations__属性与boundArguments对象相结合，我们可以拿到参数名与其对应的默认值，函数注解，参数类型与目前值。
+因此自己构造一个装饰器对所有参数进行检查，这是对之前函数注解里的方法的补充。
+
+案例：
+#!/usr/bin/env python3
+# coding=utf-8
+
+from inspect import signature
+
+
+def check_params(func):
+    def inner(*args, **kwargs):
+        rules = func.__annotations__  # 函数注解({参数名：注解})
+        sig = signature(func)  # 传入func产生Signature对象
+        ba = sig.bind(*args, **kwargs)  # 将值与参数绑定，从而得到参数名到值的映射
+        for name, val in ba.arguments.items():  # 对传入值进行类型检查
+            assert isinstance(val, rules[name]), '%s except %s, not %s' % (
+                name, rules[name], type(val))
+        return func(*args, **kwargs)
+    return inner
+
+
+@check_params
+def intro(name: str, age: int, high: float=160):
+    print('%s is %d years old, %.2f centimeters high.' % (name, age, high))
+
+if __name__ == '__main__':
+    intro('Sue', 17, 165.3)
+    intro(15, 17, 165.3)
+
+运行结果：
+$ ./test.py
+'Sue is 17 years old, 165.30 centimeters high.
+Traceback (most recent call last):
+  File "./test.py", line 24, in <module>
+    intro(15, 17, 165.3)
+  File "./test.py", line 13, in inner
+    assert isinstance(val, rules[name]), '%s except %s, not %s' % (name, rules[name], type(val))
+AssertionError: name except <class 'str'>, not <class 'int'>
+
+
+备注：
+关于注解这个问题，Python3.5中新出了"临时"的新库typing。
+我一开始认为，该库的出现可以让我推掉丑陋的装饰器写法来检查参数类型。
+但找了网上资料后，发现该库只是提供一种函数注解格式的建议，以弥补之前函数注解格式的杂乱无章。
+当符合这个规定的注解，会被当作是建议类型，从而ide厂商可以对此提供检查和支持。不符合的，不会被检查，不会被当作是类型注解
+typing目前对解释器运行毫无影响，而且该库仍在不断完善中，且ide公司也在加紧适配
+https://www.zhihu.com/question/35607986
