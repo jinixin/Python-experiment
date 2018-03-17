@@ -1,0 +1,33 @@
+Barrier类
+
+3.2版本threading库引入的新类，用于同步多个线程间的进度。
+其会使得部分线程进入等待模式，直到所有线程都运行到某处为止。其可以用于确保一个任务前的所有准备工作已全部完成。
+
+from threading import Barrier, Thread
+
+def get_votes(site):
+    ballots = conduct_election(site)
+    all_polls_closed.wait()        # do not count until all polls are closed
+    totals = summarize(ballots)
+    publish(site, totals)
+
+all_polls_closed = Barrier(len(sites))
+for site in sites:
+    Thread(target=get_votes, args=(site,)).start()
+
+你也许会觉得Barrier与threading.Thread.join()很像，的确它们都可以进行同步，但线程在经过Barrier点之后，仍然全部存活。
+
+但是，如果某个线程hang住怎么办呢？别担心，wait方法有可选的timeout参数。当线程没有全部到达时，所有在等待的线程将会被释放，抛出BrokenBarrierError
+
+def get_votes(site):
+    ballots = conduct_election(site)
+    try:
+        all_polls_closed.wait(timeout=midnight - time.now())
+    except BrokenBarrierError:
+        lockbox = seal_ballots(ballots)
+        queue.put(lockbox)
+    else:
+        totals = summarize(ballots)
+        publish(site, totals)
+
+失败就重新放入队列中，成功则继续
