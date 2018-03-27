@@ -1,0 +1,47 @@
+nonlocal关键字
+
+3.1版本引入的新关键字，目的在于在当前命名空间中修改外层命名空间中的某个变量，相当于和外层命名空间共用该变量。
+语法：nonlocal x
+
+你可能要问：这不是早就可以了吗？我天天用闭包呢！
+
+之前在当前命名空间中读取外层命名空间中的变量是没有阻碍的，完全可以获得。但要改外层命名空间的变量，就很难。
+如果直接改，会先在本层命名空间中产生一个新的同名变量，而后改变仅发生在其身上，无法影响到外层命名空间变量的值。
+但想在本层中修改外层命名空间变量的值还是有办法的：必须先在最顶层命名空间中定义同名变量，然后靠global引入，再修改。
+
+但有了nonlocal关键字，现在就变成了我和我的外层命名空间的事了，与全局命名空间无关。
+
+#!/usr/bin/env python3
+# coding=utf-8
+
+
+def func_a():
+    a = 1
+
+    def func_b():
+        b = 2
+
+        def func_c():
+            nonlocal a
+            a = 3
+            print('func_c %d' % a)
+        func_c()
+
+    func_b()
+    print('func_a %d' % a)
+
+func_a()
+
+
+返回值为
+func_c 3
+func_a 3
+可以看到在func_c中对a的修改影响到了其外层func_a命名空间中a的值，因为"nonlocal a"将a从func_a中完全引入了func_c。
+
+若将nonlocal a注释掉，则返回值为
+func_c 3
+func_a 1
+此时的修改无法影响func_a中的值
+
+参考链接：
+http://blog.csdn.net/miniykyk/article/details/52383960
