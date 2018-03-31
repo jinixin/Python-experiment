@@ -1,0 +1,67 @@
+yield from语句
+
+3.3版本引入的新特性，目的是允许将复杂的生成器分解成多个子生成器
+
+语法形式：
+yield from 可迭代对象 => for item in 可迭代对象: yield item
+
+相当于把内部生成器直接暴露给外部调用者，会阻塞外部生成器。
+目的是外部调用者可以直接接收内部生成器返回值，并且直接发送值给内部生成器。
+这个过程外部生成器一直阻塞着，等到内部生成器迭代结束，外部生成器将会继续向下运行。
+
+>>> def foo():
+...   yield from range(5)
+...   yield from range(5, 0, -1)
+...
+
+>>> foo()
+<generator object foo at 0x104e2a0f8>
+
+>>> list(foo())
+[0, 1, 2, 3, 4, 5, 4, 3, 2, 1]
+
+
+
+
+#!/usr/bin/env python3
+# coding=utf-8
+
+
+def inner():
+    # inner是生成器
+    total = 0
+    while True:
+        next = yield total
+        if next == -1:
+            return total
+        elif next is not None:  # 调用__next__()或send()，next值为None
+            total += next
+
+
+def outer(ret):
+    # outer是生成器
+    while True:
+        num = yield from inner()
+        ret.append(num)
+
+ret = []
+out = outer(ret)  # 得到生成器
+
+print(out.__next__())  # 0
+print(out.send(1))  # 1
+print(out.send(2))  # 3
+print(out.__next__())  # 迭代器的next方法被替换为__next__方法，3
+
+print(out.send(5))  # 8
+print(out.send(None))  # 8
+out.send(-1)  # inner将total返给outer的num变量
+
+print(ret)  # [8]
+
+
+注意：
+
+num = (yield num)
+
+使用了send()，而不传入参数，则生成器接受到是None
+使用了__next__()，则会要求生成器向下执行，生成其接受到的是None
