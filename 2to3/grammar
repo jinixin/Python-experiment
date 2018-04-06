@@ -1,0 +1,296 @@
+Python从2.7到3.6，变更语法概览
+
+发生改变的语法，忽略新增与可选
+关注新语法，在之后有巨大的作用
+
+去除中间反复的语法，比如 callable函数在3.0中被去除，但在3.1中又满血复活
+去除优化描述，比如在3.2中sort函数使用了timsort达到更快的速度和更小的内存使用率。
+未能覆盖所有语法变更，只是尽可能的hold大多数的变化
+从py2一步到位py3
+
+python2已经不再引进新特性，安全更新会提供到2020年（已达成共识）
+
+3.0
+
+1）print是一个新函数
+Old: print "The answer is", 2*2
+New: print("The answer is", 2*2)
+
+Old: print x,           # 空一格（代替换行）
+New: print(x, end=" ")  # 空一格
+
+Old: print              # 空一行
+New: print()            # 同上
+
+You can also customize the separator between items
+print("There are <", 2**32, "> possibilities!", sep="") =》 There are <4294967296> possibilities!
+
+When using the 2to3 source-to-source conversion tool, all print statements are automatically converted to print() function calls, so this is mostly a non-issue for larger projects.
+
+2)dict.keys(), dict.items() and dict.values() 返回“view”代替list。将k = d.keys(); k.sort()替换为k = sorted(d)
+不支持dict.iterkeys(), dict.iteritems() and dict.itervalues()
+
+3）map()，filter()，zip() 返回迭代器 iterators。
+map输入的几个序列有相同长度：如果仍然需要list对象，可以使用list函数包裹，比如list(map())，或者使用列表解析（推荐这个）。
+map输入的几个序列长度不同：会受限于最短的（2中不受限，自动加None）
+
+2:
+>>> map(lambda x, y: str(x)+str(y), (1,2), (11,22,33))
+['111', '222', 'None33']
+
+3:
+>>> list(map(lambda x, y: str(x)+str(y), (1,2), (11,22,33)))
+['111', '222']
+
+可以结合使用itertools.zip_longest(*sequences)方法来修改
+# zip_longest('ABCD', 'xy', fillvalue='-') --> Ax By C- D-
+
+
+4）range() 就是 xrange()了，后者不再存在
+
+5) <,>将只适用于相同类型比较，类型不同，TypeError.
+
+6)sorted()与list.sort()方法去除了cmp参数，使用key关键字代替。reverse参数仍支持
+
+7)cmp()与__cmp__()不再支持，使用__lt__()来排序, __eq__() with __hash__(), 如果还需要cmp()，可以用(a > b) - (a < b)来代替cmp(a, b)
+
+8)long变为int
+
+9）1/2返回0.5，是真实的除法；1//2返回0，地板除
+
+10)八进制表示从“0720”代替为“0o720”。用0bxx表示二进制，bin函数将数字转为二进制表示。同样，也有了转为字节的函数bytes
+
+11）编码
+
+
+
+
+
+
+
+4）扩展解包，p永远是个字典
+补充：第一次知道{1,2}是产生集合set([1, 2])
+>>> a, *p, b = range(5)
+>>> print(a, b, p)
+0 4 [1, 2, 3]
+
+>>> *p, a = range(5)
+>>> print(p, a)
+[0, 1, 2, 3] 4
+
+5）异常处理
+3个
+
+6）元类
+class C:
+    __metaclass__ = M
+    ...
+替换为：
+class C(metaclass=M):
+    ...
+
+7)列表解析
+[... for var in item1, item2, ...] =》 [... for var in (item1, item2, ...)]，前者不再支持，请手动带括号
+
+8）失效：
+
+*元组参数自动解包
+def foo(a, (b, c)):
+	...
+用下面的代替，上者不再支持
+def foo(a, b_c):
+    b, c = b_c
+
+*反引号不再支持，使用repr代替
+
+<>用!=代替
+
+字符串不支持前导u，U
+
+from module import *
+不允许在函数里使用
+
+旧式类不再支持
+
+9）2.6已开始支持3.0的特性：
+1:字符串格式化引入format()
+2:print函数化
+3:except exc as var替换except exc, var。后者将不再支持
+
+包改变
+略去
+
+杂项：
+迭代器：next()更名为__next__()
+__nonzero__()更名为__bool__()
+super(当前类，实例)可以没有这两参数，Python将自动为我们填写这两参数。
+raw_input()更名为input()，其从标准输入（sys.stdin）中读取一行，自动剥去行尾的换行符。旧的input方法变成了eval(input())
+round(x,n=1)策略已发生改变，n表示精确到小数点后几位。当round只有一个参数时，该方法返回整形。否则，返回和x类型一致的数。小数进行四舍五入。但当x.5时，且舍入到整形时，向最接近的偶数靠拢。？TT
+移除reduce()，你可以使用functools.reduce()代替，但建议使用可读性更高的循环来做
+移除reload（），使用“
+import imp
+imp.reload()
+代替”
+移除dict.has_key方法
+增加callable()等效工具isinstance(obj, collections.Callable)【需提前引入collections包】
+
+
+###3.1
+
+
+
+2)int类型增加bit_length方法，用于返回某int的最小二进制位数
+3）with允许多个上下文对象出现在同一个语句中。
+>>> with open('mylog.txt') as infile, open('a.out', 'w') as outfile:
+...     for line in infile:
+...         if '<critical>' in line:
+...             outfile.write(line)
+4)Python找到不改变其值的最短表示
+
+
+6）itertools模块增加了两个方法
+itertools.combinations_with_replacement(序列，长度)：
+从序列中抽取指定个数的元素，组成排列组合
+>>> [a+b for a,b in itertools.combinations_with_replacement('ABC', 2)]
+['AA', 'AB', 'AC', 'BB', 'BC', 'CC']
+
+itertools.compress()
+
+
+
+8）测试
+unit测试与断言
+
+9)增加importlib模块
+用importlib.import_module()来手动导入名字为字符串给出的一个模块或者包的一部分，并返回生成的模块对象
+>>> import importlib
+>>> math = importlib.import_module('math')
+>>> math.sin(2)
+
+>>> mod = importlib.import_module('urllib.request')
+>>> u = mod.urlopen('http://www.python.org')
+
+也可用于相对导入，但需要通过package对象加入锚点
+params = importlib.import_module('b.c.c') #绝对导入
+params1 = importlib.import_module('.c.c',package='b') #相对导入
+
+10）json只支持str，不再支持bytes
+
+
+*********************************************
+3.2
+2）命令行解析模块Argparse：PEP389（略）
+
+3）基于字典配置logging：PEP391（后推）
+
+4）新的顶级包concurrent正在诞生，其中第一包叫做future：用于提供管理进程和线程的高级接口（后推）
+PEP 3148
+
+5）PYC仓库目录：用于解决多个Python版本切换时减少重写pyc缓存的事情：PEP3147（后推）
+
+
+6）Python Web 服务网关接口：PEP 3333（后推）
+
+7）elementtree包发生变化
+8）datetime与time增加时区支持
+9）math模块增加了6个参数：
+isfinite(num)：当num是数时返回True，当为Nan与Inf时，返回False
+
+10）abc模块增加两个装饰器方法用于支持在抽象类中定义类方法和静态方法
+
+11）多线程
+12）发生升级：contextlib、sysconfig、configparser（有不兼容之处，注意加强！！）、urllib.parse、logging
+13)
+random.seed()采用sha512算法加盐，若要使用原先的请注意random.seed(s, version=1)
+
+xml.etree.ElementTree 报xml.etree.ElementTree.ParseError 当解析失败，之前是xml.parsers.expat.ExpatError
+SSL sockets 超时报socket.timeout，代替之前的SSLError
+
+*********************************************
+3.3
+抑制链式打印异常：raise Exception() [from None]，没有from None会打出异常链。有了None，就打直接异常
+
+重新支持之前被去除unicode表示u前导标志，不过没有任何语义。
+
+
+
+使用importlib代替__import__！！！跟进
+
+
+新增faulthandler模块用于打印错误输出栈
+
+gc垃圾处理调用（二期）
+
+The interpreter stack（打印调用栈？二期）
+
+open('文件名', 'w')：创建文件；当文件存在时，抛出FileExistsError异常
+open('文件名', 'u')：以读写方式打开文件，已被废弃
+
+signal新增（二期）
+signal.signal()与signal.siginterrupt()发生异常时用OSError代替RuntimeError
+
+socket与socketserver新增（二期）
+
+
+threading.Thread支持可选的daemon参数：
+Thread(target=func, daemon=True).start()
+可代替原先
+t = Thread(target=func)
+t.daemon = True
+t.start()
+也就是说设置为daemon的线程会随着父线程的退出而结束，而非daemon线程会阻塞父线程的退出，已验证！
+没有设置daemon的线程会继承父线程的状态，主线程默认是非daemon线程
+
+*********************************************
+3.4
+importlib模块弃用部分方法
+
+xml.etree.ElementTree.iterparse() 被弃用
+
+*********************************************
+3.5
+具有异步与等待功能的协程（后期跟进），并跟进相关，急急急急！！！
+
+支持矩阵乘法操作符@：a@b
+
+os模块增加scandir方法，目录迭代，用于列出目录下的文件名，返回迭代器，内存低占用
+>>> for i in os.scandir('/Users/work'):
+...   print(i.name)
+该方法有更高的效率
+
+math模块增加方法用于判断两数是否近似相等
+>>> import math
+>>> a = 5.0
+>>> b = 4.99998
+>>> math.isclose(a, b, abs_tol=0.00003)
+
+
+collections.deque
+这个其实很早就有了，只是3.5版本为它增加了些方法，所以一并拿出来谈谈
+deque兼具堆栈与队列的功能
+
+deque(iterable, maxlen)
+iterable表示接收一个可迭代对象
+maxlen是容器最大长度，当容器已满，仍向一端加入元素，会从另一端损耗相同数量的元素
+
+append(x)：从容器右端加入x
+appendleft(x)：从容器左端加入x
+
+extend(iter)：从右端并入可迭代对象iter
+extendleft(iter)
+
+pop()：从右端弹出并返回一个元素
+popleft()：从左端
+
+insert(i, x)：在i位置插入x，如超出maxlen，抛出IndexError
+index(x)：返回x的位置
+
+count(x)：计算deque中x的数量
+
+clear()：情况deque中所有元素
+copy()：创建一个deque的浅拷贝
+
+remove(x)：删除第deque中第一个x
+reverse()：反转，返回None
+
+maxlen属性
