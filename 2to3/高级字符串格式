@@ -1,0 +1,70 @@
+高级字符串格式:
+
+可以通过位置参数或通过关键字参数
+>>> 'user id {0}'.format('root')
+'user id root'
+>>> 'user id {uid} ppic {ppif}'.format(uid='root',ppif='qwer')
+'user id root ppic qwer'
+
+通过{{}}，实现打印{}
+
+
+或者通过复合参数
+0表示sys
+>>> import sys
+>>> print 'Platform: {0.platform}\nPython version: {0.version}'.format(sys)
+
+
+左对齐填充15个字符，右对齐填充6个字符
+>>> fmt = '{0:15} ${1:>6}'
+>>> fmt.format('Registration', 35)
+'Registration    $    35'
+>>> fmt.format('Tutorial', 50)
+'Tutorial        $    50'
+>>> fmt.format('Banquet', 125)
+'Banquet         $   125'
+
+
+格式控制符可以通过嵌套引用其他域
+>>> fmt = '{0:{1}}'
+>>> width = 15
+>>> fmt.format('Invoice #1234', width)
+'Invoice #1234
+
+对齐方式：
+< 左对齐
+> 右对齐
+^ 居中
+
+格式说明符还可以格式化值
+>>> '{0:g}'.format(3.75)
+'3.75'
+>>> '{0:e}'.format(3.75)
+'3.750000e+00'
+
+b：数字转为二进制
+d（十进制整型数字）、o、x
+e：科学计数法
+%：百分比
+>>> '{0:%}mi'.format(0.3)
+'30.000000%mi'
+
+自动补上位置index
+>>> 'Sir {} of {}'.format('Gallahad', 'Camelot')
+'Sir Gallahad of Camelot'
+
+
+内建函数，注意区别：
+>>> format(1234567, ',d')
+'1,234,567'
+>>> format(1234567.89, ',.2f')
+'1,234,567.89'
+>>> format(12345.6 + 8901234.12j, ',f')
+'12,345.600000+8,901,234.120000j'
+>>> format(Decimal('1234567.89'), ',f')
+'1,234,567.89'
+
+
+>>> '{name}:{init}'.format_map({'name':'jk', 'init':5})
+'jk:5'
+
