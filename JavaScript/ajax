@@ -1,16 +1,19 @@
-Jquery中Ajax几种常见的方法
+jQuery的Ajax请求
 
 Ajax可用于浏览器与服务器通信而无需刷新整个页面，服务器将不再返回整个页面，而是返回少量数据，通过JavaScript DOM更新一部分节点。
-数据可以采用xml或json格式，Ajax最早用于谷歌的搜索提示。
+数据可采用xml或json格式，Ajax最早用于谷歌的搜索提示。
 
-不刷新整个页面便可与服务器通讯的办法，其实有很多，比如Flash，Java applet，框架，iframe等，但Ajax是目前最为常见的一种。
+不刷新整个页面便可与服务器通讯的办法其实有很多，比如Flash，Java applet，iframe等，但Ajax是目前最为常见的一种。
 
-我们可以使用JS扩展对象XMLHttPRequest实现Ajax，在这里我们不做介绍，直接了解Jquery实现Ajax的几种方法。
+我们可以使用JS扩展对象XMLHttpRequest实现Ajax，对于这种方法在这里我们不做介绍，直接了解jQuery实现Ajax的几种方法，重型框架用起来。
 
 
-首先我想先来说一下，浏览器与服务器之间的数据格式
-比较常见的有xml，html，text，json，jsonp等，目前json由于占用更小存储，是JS原生格式，因此大受欢迎。
-浏览器与服务器之前传输的都是文本字符串，因此双方在接受到服务器的数据时都需要对json序列化与反序列化。
+首先了解下浏览器与服务器之间传输数据所采用的数据格式
+
+比较常见的有xml，html，text，json，jsonp等，目前json由于占用更小存储，且是JS原生格式，因此很受欢迎。
+当确定使用数据传输采用json格式后，下面就需要考虑序列化问题了。
+
+浏览器与服务器之间传输的都是文本字符串，因此浏览器与服务器再向网络通道中写入数据时，都需要先序列化json对象为文本字符串。而从网络通道中读取数据时，都需要反序列化文本字符串为json对象。
 比如Python中json.dumps用于序列化，json.loads用于反序列化。
 
 如果确定格式是json后，JS中的请求中也需要对服务器返回的数据进行反序列化，即将json字符串变成json对象。
@@ -20,45 +23,46 @@ var json_str = '{"result": "hello, world!"}';
 var json_object = eval("(" + json_str + ")");
 
 法二：
-引入Jquery：
+引入jQuery：
 var json_object = jQuery.parseJSON(json_str);
 
-通过"alert(json_object.result);"可以看到反序列化成功
+通过"alert(json_object.result);"即可输出结果，反序列化成功。
+
 
 $.ajax()
 该方法用于执行Ajax请求，常用于其他Ajax方法不能完成的请求。
-该方法可以实现搞定你所有的想法，也许我们可以简单把它称为"Jquery中Ajax系列方法之母"。
-
+该方法可以实现其他jQuery Ajax方法所不能实现的功能，也许我们可以把它称为"jQuery中Ajax系列方法之母"。
 
 形式：
-$.ajax({name:val, name:val,...})
+$.ajax({name:val, name:val,...});
 
-可能用到的键：
-url: "链接地址"
+可选的字段：
+
+url: 链接地址，字符串表示
 data: 需要发送到服务器的数据，GET与POST都可以，格式采用{A:'...', B:'...'}
 type: "POST" 或 "GET"，请求类型
-timeout: 请求超时时间，单位为毫秒
-cache：是否缓存请求结果
+timeout: 数字请求超时时间，单位为毫秒，数字表示
+cache：是否缓存请求结果，bool表示
 contentType：内容类型，默认为"application/x-www-form-urlencoded"
-dataType：服务器响应的数据类型。当这里为json时，回调函数中无需再进行json反序列化。
+dataType：服务器响应的数据类型，字符串表示。当填写为json时，回调函数中无需再进行json反序列化。
 success: 请求成功后，服务器回调的函数
 error: 请求失败后，服务器回调的函数
-complete: 请求完成时调用的函数，无论请求是成功还是失败，都会调用该函数。如果有success与error函数，在它们之后被调用。
-async：是否异步处理，默认为true。这个与success，error，complete函数执行有很大关系。设置该值后，js不会向下执行，而是等待服务器返回数据，调用相应的回调函数。
+complete: 请求完成后调用的函数，无论请求是成功还是失败，都会调用该函数。如果设置了success与error函数，则在它们之后被调用。
+async：是否异步处理，bool表示，默认为true。设置该值为false后，js不会向下执行，而是等待服务器返回数据，调用相应的回调函数后，再向下执行。
 
-username：访问认证请求中使用的用户名
-password：返回认证请求中使用的密码
-个人感觉这两个是不是可以放到data中去，没有尝试过，不敢直接下结论。
+username：访问认证请求中使用的用户名，字符串表示
+password：返回认证请求中使用的密码，字符串表示
+个人感觉如果将这两个放到data中去，是不是密码会以明文展示，因为没有尝试过，不敢直接下结论。
 
 举例：
 $.ajax({
-    url: "{{ url_for('greet') }}",
+    url: "/greet",
     data: {name: 'jenny'},
     type: "POST",
     dataType: "json",
     success: function(data) {
-        data = jQuery.parseJSON(data);
-        $("#ret").text(data.result);
+        // data = jQuery.parseJSON(data); //dataType指明了返回值为json类型，故不需要再反序列化
+        ...
     }
 });
 
@@ -67,72 +71,70 @@ $.post()
 该方法使用POST方式执行Ajax请求，从服务器加载数据。
 
 形式：
-$.post(url, data, func, dataType)
+$.post(url, data, func, dataType);
 
-url：请求的链接
-data：需要发送到服务器的数据
-func：function(data, status, xhr)，请求成功时运行的函数。data为服务器回传的数据，status为请求状态，xhr即XMLHttpRequest对象。个人感觉关注data即可。
-dataType：返回数据的格式
+url：链接地址，字符串表示
+data：需要发送到服务器的数据，格式采用{A:'...', B:'...'}
+func：function(data, status, xhr)，请求成功后执行的函数。data为服务器回传的数据，status为请求状态，xhr即XMLHttpRequest对象，个人感觉关注data即可。
+dataType：服务器返回数据的格式
 
-        $.post(
-            "{{ url_for('greet') }}",
-            {name: 'Brad'},
-            function(data) {
-                $('#ret').text(data.result);
-            },
-            "json"
-        );
+$.post(
+    "/greet",
+    {name: 'Brad'},
+    function(data) {
+        ...
+    },
+    "json"
+);
 
 $.get()
 该方法使用GET方式执行Ajax请求，从服务器加载数据。
 
 形式：
-$.get(url, data, func, dataType)
+$.get(url, data, func, dataType);
 
-各个参数表示意义与$.post一样，在此不再列出。
+各个参数表示意义与$.post一样，在此不再列出，唯一区别就是请求类型是GET。
 
-      $.get(
-            "{{ url_for('greet') }}",
-            {name: 'Brad'},
-            function(data) {
-                $("#ret").text(data.result);
-            },
-            "json"
-        );
+$.get(
+    "/greet",
+    {name: 'Brad'},
+    function(data) {
+        ...
+    },
+    "json"
+);
 
-感觉上面三个方法是Jquery中较为重要的，下面再简单挑了三个较为常见的三个方法。
+
+感觉上面三个方法是jQuery中较为重要的，下面再简单挑了三个较为常见的方法。
 
 $.getJSON()
-
 该方法使用GET方式执行Ajax请求，从服务器加载JSON格式数据。
 
+形式：$.getJSON(url, data, func);
+因为确定服务器返回json编码的数据，故相较于$.get()不必再指定dataType。
 
-形式：$.getJSON(url, data, func)
-因为确定服务器返回json编码的数据，故相较于$.get不必再指定dataType。
-
-        $.getJSON(
-            "{{ url_for('greet') }}",
-            {name: 'jenny'},
-            function(data) {
-                $("#ret").text(data.result);
-            }
-        );
+$.getJSON(
+    "/greet",
+    {name: 'jenny'},
+    function(data) {
+        ...
+    }
+);
 
 $.load()
-将服务器加载的数据直接插入到DOM中
+将服务器加载的数据直接插入到指定DOM中
 
-形式：$.load(url, data, func)
+形式：$.load(url, data, func);
+data如果存在，则使用POST方式发送请求，不存在则使用GET方式发送请求。
 
-data如果存在，则使用POST方式发送请求，不存在则使用GET方式请求
-    function login5() {
-        $('#ret').load(
-            "{{ url_for('greet') }}",
-            {name: 'Brad'}
-        );
-    }
+<div id="ret"></div>
+$('#ret').load(
+    "/greet",
+    {name: 'Brad'}
+);
+
 
 $.getScript()
-
 该方法使用GET方式执行Ajax请求，从服务器加载并执行JavaScript。
 
-形式：$.load(url, func)
+形式：$.load(url, func);
