@@ -1,0 +1,143 @@
+Python Queue模块
+
+Queue模块，顾名思义其实现了各种队列，比如Queue，LifoQueue与PriorityQueue。
+一开始我没有过多注意到该模块，随着学习深入，多线程编程越来越普遍，常常需要共享数据，而数据在共享时一旦涉及修改，就需要加锁来确保该时刻仅有一个线程可以修改。
+由于Queue模块是线程安全的，故数据可以通过其来实现共享，比起使用锁和信号量着实方便不少。
+
+
+构造方法
+Queue模块中有三种顺序表，分别是Queue，LifoQueue与PriorityQueue，下面是他们对应的构造方法：
+
+三个构造方法都有maxsize参数，表示容量。当向已满的队列中继续插入时，将引起程序阻塞或异常。当maxsize小于等于0时，表示该队列容量无上限。
+
+Queue(maxsize=0)
+队列，先入先出
+
+LifoQueue(maxsize=0)
+栈，先入后出
+
+PriorityQueue(maxsize=0)
+优先队列
+优先队列中的元素为item，取出元素时item先按"sorted(list(item))[0])"排序，将第一个item弹出队列。
+队列中item可以是自定义类型，但别忘记在自定义类型中实现__cmp__或__lt__比较方法。
+
+优先队列的例子：
+
+#!/usr/bin/env python3
+# coding=utf-8
+
+from queue import PriorityQueue
+
+
+def main():
+    q = PriorityQueue(5)
+    q.put([3, '满月'])
+    q.put([1, '繁星'])
+    q.put([4, '江上'])
+    print(q.get(), q.get(), q.get())
+
+    q = PriorityQueue(5)
+    q.put(3)
+    q.put(1)
+    q.put(4)
+    print(q.get(), q.get(), q.get())
+
+
+if __name__ == '__main__':
+    main()
+
+
+常用方法
+
+qsize()
+返回目前队列中元素的数量
+
+empty()
+队列是否为空
+
+full()
+队列是否已满
+
+put(item, block=True, timeout=None)
+向队列中插入item
+如果队列已满，且block为True时，则在timeout秒数内阻塞，等待插入；当block为False或等待超过timeout时，抛出queue.Full异常。
+如果队列已满，block为True，且timeout为None时，程序会一直阻塞直至成功插入元素。
+
+put_nowait(item)
+等价于put(item, block=False)
+
+get(block=True, timeout=None)
+从队列中取得下一个元素
+如果队列为空，且block为True时，则在timeout秒数内阻塞，等待获取；当block为False或等待超过timeout时，抛出queue.Empty异常。
+如果队列为空，block为True，且timeout为None时，程序会一直阻塞直至成功获取下一个元素。
+
+get_nowait()
+等价于get(block=False)
+
+task_done()
+告诉队列，之前的一次任务已完成
+get()从队列中获取（弹出）一个元素，该元素再被用于一系列可能的操作后，task_done用于告诉队列这一系列操作执行完成。
+
+如果在每次get()之后不调用task_done()，则之后join()方法会一直阻塞程序。
+如果不使用join()，那么task_done()不需要调用。
+
+join()
+阻塞程序，直到队列中所有任务都完成，需和task_done()配合使用
+
+
+案例
+
+使用Queue模块的Queue队列，实现生产者与消费者
+
+#!/usr/bin/env python3
+# coding=utf-8
+
+import time
+from threading import Thread
+from queue import Queue, LifoQueue
+
+
+def consumer(index, q):
+    while True:
+        if q.empty():
+            break
+
+        sleep_time = q.get(block=True, timeout=10)  # 弹出并返回
+        print('%s thread sleep for %s seconds' % (index, sleep_time))
+        time.sleep(sleep_time)
+        q.task_done()  # 通知队列上一个get返回元素的任务已完成
+
+    print('%s thread finished' % index)
+
+
+def producer(q):
+    for sleep_time in range(20):  # 将休眠时间压入队列
+        q.put(sleep_time, block=True, timeout=20)
+
+
+def main(q):
+    thread_list = []
+    for index in range(5):
+        if index == 0:
+            t = Thread(target=producer, args=(q,))  # 生产者
+        else:
+            t = Thread(target=consumer, args=(index, q))  # 消费者
+        t.start()  # 开始该子线程
+        thread_list.append(t)
+
+    q.join()  # 等待队列为空，注意task_done方法必须被调用，否则一直阻塞
+
+    for thread in thread_list:  # 等待所有子线程全部结束
+        thread.join()
+
+    print('done')
+
+
+if __name__ == '__main__':
+    q = Queue(5)
+    # q = LifoQueue(5)
+    main(q)
+
+
+参考链接：
+https://docs.python.org/3/library/queue.html
