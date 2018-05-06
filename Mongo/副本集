@@ -1,0 +1,85 @@
+mongo副本集
+
+给每个副本创建数据目录
+mkdir -p ~/dbs/node1 ~/dbs/node2
+
+给副本集创建名字：kkvn
+
+启动服务器
+./mongod --dbpath ~/dbs/node1 --port 自己所在端口 --replSet kkvn/主机名：同伴端口号
+副本集有自检测功能，在指定单台服务器后，mongo会自动搜索并连接其余节点
+
+初始化副本集
+脸上一个mongo服务器，在shell中写入配置，初始化只用执行一次即可
+指定每个mongo服务器的唯一id，host与port，优先级
+
+
+节点类型介绍
+
+
+故障切换与选举
+
+当主节点损坏，其余节点可以发起选举
+
+新的主节点将是优先级高的，当优先级相同时则是数据较新的节点。
+
+活跃节点使用心跳来检测集群中有多少个节点对其可见，若不够半数，活跃节点会自动降为备份节点
+
+新活跃节点产生后，新活跃节点的数据被假定为系统最新数据，其他节点会连接新主节点进行数据同步或回滚，依据自己oplog
+
+其他
+
+当负载是读取密集，可使用读扩展，即主节点负责写入，修改，删除；从节点负责读取。注意：数据复制并不同步，即主节点数据更新后，有片刻从节点数据不是最新的。当从服务器接入之后，不能马上处理请求，需要登陆该从库并使用db.getMongo().setSlaveOk()。
+
+但当负载是写入密集，就需要考虑使用自动分片来进行扩展
+
+
+工作原理：
+
+主节点将记录所有的写操作，记录在local库的oplog中，注意查询操作是不被记录的；从节点定期轮询主节点的oplog，然后对自己的数据副本执行这些操作。
+
+oplog包含如下主要的键，ts：操作时间，op：操作类型（i表示插入，d表示删除，u表示更新），ns：执行操作的数据库与集合名称，o：执行的文档
+存储在oplog中的操作，不是和主节点的实际操作一摸一样；这些操作在存储之前先要做等幂变换，将inc等操作变成set，这样即使从节点执行多次，只要oplog顺序执行，也不会造成混乱。
+
+oplog有固定大小，默认是剩余空间的5%，启动mongod服务可以通过 --oplogSize指定，单位是MB。当oplog满时，其会覆盖旧纪录。
+
+同步：
+从节点第一次启动时，会对主节点数据进行完整同步。从主节点的每个集合上复制数据。同步完成后，从节点之后就开始轮询主节点的oplog日志，以保证数据是最新的。
+但是可能会出现从节点被主节点落下太多，同步速度跟不上，这时从节点复制就会停止，等待完整同步。可以用{"resync": 1}手动执行同步，或在从节点启动时使用--autoresync选项，让其自动重新同步。重新同步代价高，所以尽量将oplog搞大点。
+
+
+同步时，从节点不会复制主节点的local的数据库。因此有不想被复制的文档，可以放到local数据库。
+
+权威指南称可在slaves与sources集合中分别找到目前从节点列表与主节点列表，以及目前的同步到的时间。但我没有找到，怀疑！！！
+
+阻塞复制：略
+
+工具：
+db.printReplicationInfo()
+主节点上执行：
+configured oplog size:   10240MB
+log length start to end: 219717secs (61.03hrs)
+oplog first event time:  Fri May 04 2018 03:24:08 GMT+0800 (CST)
+oplog last event time:   Sun May 06 2018 16:26:05 GMT+0800 (CST)
+now:                     Sun May 06 2018 16:26:06 GMT+0800 (CST)
+
+oplog size又有10GB，第二个表示时常，可记录了61h的操作
+oplog的大小需要至少保证可以完成一次完整的重新同步，疑问：怎么确定完整的重新同步所需的时间呢？
+
+
+从节点上执行：
+获得主节点ip与端口，最近的同步时间以及数据滞后时间
+
+变更oplog大小：
+详见：https://mongodb-documentation.readthedocs.io/en/latest/tutorial/change-oplog-size.html
+
+先停掉主节点，备份local库下的oplog.rs集合
+存储库中最后操作，db.temp.save( db.oplog.rs.find( { }, { ts: 1, h: 1 } ).sort( {$natural : -1} ).limit(1).next() )
+删除db.oplog.rs.drop()集合
+创建新库：db.runCommand( { create : "oplog.rs", capped : true, size : 2147483648 } )，size为字节（这里为2GB）
+重新插入最后一次操作：db.oplog.rs.save( db.temp.findOne() )
+重启所有的从节点，注意使用--autoresync选项
+
+
+
+
